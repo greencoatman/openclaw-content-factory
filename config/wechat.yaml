@@ -1,0 +1,101 @@
+# 微信公众号配置
+
+# 公众号基本信息
+wechat:
+  # AppID（从微信公众平台获取）
+  app_id: "wx235eea23e433b246"
+  
+  # AppSecret（从微信公众平台获取）
+  app_secret: "c077b6f512c034c35d63e4ebd5370057"
+  
+  # 公众号类型: subscription（订阅号）, service（服务号）
+  account_type: "subscription"
+  
+  # API Base URL
+  api_base_url: "https://api.weixin.qq.com"
+  
+  # Access Token 缓存配置
+  token:
+    # 缓存文件路径
+    cache_file: ".wechat_token_cache.json"
+    
+    # 提前刷新时间（秒，默认提前5分钟刷新）
+    refresh_before: 300
+
+# 发布配置
+publish:
+  # 发布模式: draft（草稿箱）, publish（直接发布）
+  mode: "draft"
+  
+  # 是否自动上传图片到微信素材库
+  auto_upload_images: true
+  
+  # 文章默认设置
+  defaults:
+    # 作者（订阅号限制8字符以内，建议4字符）
+    author: "CC"
+    
+    # 是否原创: 0-否, 1-是
+    is_original: 1
+    
+    # 是否打开评论: 0-否, 1-是
+    need_open_comment: 1
+    
+    # 是否粉丝才可评论: 0-否, 1-是
+    only_fans_can_comment: 0
+
+# 内容转换配置
+content:
+  # HTML 模板样式
+  style:
+    # 字体
+    font_family: "PingFang SC, Microsoft YaHei, sans-serif"
+    
+    # 正文字号
+    font_size: "16px"
+    
+    # 行高
+    line_height: "1.8"
+    
+    # 段落间距
+    paragraph_margin: "1.5em"
+    
+    # 代码块样式
+    code_block:
+      background: "#f6f8fa"
+      border: "1px solid #e1e4e8"
+      padding: "16px"
+      border_radius: "6px"
+    
+    # 标题样式
+    heading:
+      h1:
+        font_size: "28px"
+        color: "#1a1a1a"
+        margin: "1.5em 0 0.5em"
+      h2:
+        font_size: "24px"
+        color: "#2c3e50"
+        margin: "1.2em 0 0.5em"
+      h3:
+        font_size: "20px"
+        color: "#34495e"
+        margin: "1em 0 0.5em"
+
+# 封面图配置
+cover:
+  # 默认封面图路径（如果文章没有封面）
+  default_image: ""
+  
+  # 封面图尺寸要求（微信要求）
+  # 宽高比 2.35:1，建议尺寸 900x383
+  width: 900
+  height: 383
+  
+  # 是否自动生成封面（如果没有）
+  auto_generate: false
+
+# 日志配置
+logging:
+  level: "INFO"
+  file: "wechat_publisher.log"

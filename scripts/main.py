@@ -91,6 +91,29 @@ def main():
             }
         }
         
+        # 检查是否需要发布到微信公众号
+        if args.get('publish_wechat', False):
+            logger.info("开始发布到微信公众号...")
+            try:
+                from wechat_publisher import WeChatPublisher
+                publisher = WeChatPublisher()
+                
+                # 转换 Word 为 HTML
+                html_content = publisher.convert_docx_to_html(filename)
+                
+                # 发布到草稿箱
+                publish_result = publisher.publish_article(
+                    title=article_data['title'],
+                    content_html=html_content
+                )
+                
+                result['data']['wechat'] = publish_result['data']
+                result['message'] += "，已发布到微信公众号草稿箱"
+                logger.info("微信公众号发布成功")
+            except Exception as e:
+                logger.error(f"微信公众号发布失败: {str(e)}")
+                result['data']['wechat_error'] = str(e)
+        
         print(json.dumps(result, ensure_ascii=False))
         logger.info("Content Factory 执行完成")
         
@@ -115,6 +138,7 @@ def parse_input():
     parser.add_argument('--output-dir', '-o', help='输出目录')
     parser.add_argument('--mode', '-m', choices=['auto', 'manual'], default='manual', help='生成模式')
     parser.add_argument('--domain', '-d', help='自动搜索时的领域')
+    parser.add_argument('--publish-wechat', action='store_true', help='发布到微信公众号草稿箱')
     
     args, unknown = parser.parse_known_args()
     

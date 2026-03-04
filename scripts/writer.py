@@ -254,7 +254,12 @@ class ArticleWriter:
         
         # 生成文件名
         date_str = datetime.now().strftime("%Y-%m-%d")
-        safe_topic = article['topic'].replace(' ', '-').replace('/', '-')
+        # 清理文件名中的非法字符
+        safe_topic = article['topic']
+        # 移除Windows文件名非法字符
+        for char in ['<', '>', ':', '"', '/', '\\', '|', '?', '*']:
+            safe_topic = safe_topic.replace(char, '-')
+        safe_topic = safe_topic.replace(' ', '-')
         filename = f"{date_str}-{safe_topic}深度分析.docx"
         filepath = os.path.join(output_dir, filename)
         
