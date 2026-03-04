@@ -1,12 +1,13 @@
-# 微信公众号配置
+# 微信公众号配置示例
+# 复制此文件为 wechat.yaml 并填入真实密钥
 
 # 公众号基本信息
 wechat:
   # AppID（从微信公众平台获取）
-  app_id: "wx235eea23e433b246"
+  app_id: "YOUR_APP_ID_HERE"
   
   # AppSecret（从微信公众平台获取）
-  app_secret: "c077b6f512c034c35d63e4ebd5370057"
+  app_secret: "YOUR_APP_SECRET_HERE"
   
   # 公众号类型: subscription（订阅号）, service（服务号）
   account_type: "subscription"
@@ -32,8 +33,8 @@ publish:
   
   # 文章默认设置
   defaults:
-    # 作者（订阅号限制8字符以内，建议4字符）
-    author: "CC"
+    # 作者
+    author: "技术架构观察"
     
     # 是否原创: 0-否, 1-是
     is_original: 1
