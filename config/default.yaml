@@ -1,0 +1,185 @@
+# Content Factory 默认配置
+
+# 搜索配置
+search:
+  # 搜索源配置
+  sources:
+    zhihu:
+      enabled: true
+      url: "https://www.zhihu.com/search"
+      weight: 1.0
+    
+    juejin:
+      enabled: true
+      url: "https://juejin.cn/search"
+      weight: 1.0
+    
+    weibo:
+      enabled: true
+      url: "https://s.weibo.com/top/summary"
+      weight: 0.8
+    
+    google:
+      enabled: true
+      url: "https://www.google.com/search"
+      weight: 1.2
+    
+    hackernews:
+      enabled: true
+      url: "https://news.ycombinator.com/"
+      weight: 1.0
+    
+    github:
+      enabled: true
+      url: "https://github.com/trending"
+      weight: 1.0
+  
+  # 搜索参数
+  max_results: 10
+  timeout: 30
+  retry_count: 3
+
+# 文章生成配置
+generation:
+  # 默认字数
+  default_word_count: 3000
+  
+  # 字数范围
+  min_word_count: 2000
+  max_word_count: 5000
+  
+  # 默认风格
+  default_style: "tech_architecture"
+  
+  # 代码示例配置
+  code_examples:
+    enabled: true
+    language: "python"  # 默认代码语言
+    min_examples: 2
+    max_examples: 5
+
+# 输出配置
+output:
+  # 输出格式：docx, markdown
+  format: "docx"
+  
+  # 默认输出目录
+  default_dir: "./articles"
+  
+  # 模板目录
+  template_dir: "./templates"
+  
+  # 文件名格式
+  filename_format: "{date}-{topic}.{ext}"
+  
+  # 是否覆盖已有文件
+  overwrite: false
+
+# 文章风格配置
+styles:
+  # 技术架构深度分析
+  tech_architecture:
+    name: "技术架构深度分析"
+    description: "适合技术公众号的深度技术文章"
+    
+    # 文章结构
+    structure:
+      - name: "introduction"
+        title: "引言"
+        word_count: 500
+        required: true
+      
+      - name: "principle"
+        title: "技术原理"
+        word_count: 800
+        required: true
+      
+      - name: "practice"
+        title: "实战案例"
+        word_count: 800
+        required: true
+      
+      - name: "comparison"
+        title: "对比分析"
+        word_count: 600
+        required: true
+      
+      - name: "conclusion"
+        title: "总结与展望"
+        word_count: 400
+        required: true
+    
+    # 语气风格
+    tone: "professional"
+    
+    # 是否包含代码示例
+    code_examples: true
+    
+    # 是否包含表格
+    tables: true
+    
+    # 段落要求
+    paragraph_requirements:
+      min_sentences: 3
+      max_sentences: 8
+  
+  # 资讯简报
+  news_brief:
+    name: "资讯简报"
+    description: "简洁明快的技术资讯汇总"
+    
+    structure:
+      - name: "headline"
+        title: "今日热点"
+        word_count: 200
+        required: true
+      
+      - name: "summary"
+        title: "要点速览"
+        word_count: 400
+        required: true
+      
+      - name: "details"
+        title: "详细解读"
+        word_count: 600
+        required: true
+      
+      - name: "impact"
+        title: "影响分析"
+        word_count: 300
+        required: true
+    
+    tone: "concise"
+    code_examples: false
+    tables: true
+    
+    paragraph_requirements:
+      min_sentences: 2
+      max_sentences: 5
+
+# 通知配置（可选）
+notification:
+  enabled: false
+  
+  # 飞书配置
+  feishu:
+    enabled: false
+    webhook: ""
+    secret: ""
+  
+  # 企业微信配置
+  wechat:
+    enabled: false
+    webhook: ""
+  
+  # 钉钉配置
+  dingtalk:
+    enabled: false
+    webhook: ""
+    secret: ""
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "content-factory.log"
