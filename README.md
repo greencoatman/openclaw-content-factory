@@ -165,7 +165,7 @@ DEBUG=1 python scripts/main.py
 ## 👤 作者
 
 - **GitHub**: [@greencoatman](https://github.com/greencoatman)
-- **公众号**: 技术架构观察
+- **公众号**: 二进制跳动
 
 ## 🙏 致谢
 
