@@ -18,30 +18,39 @@ class WeChatPublisher:
     """微信公众号发布器"""
     
     def __init__(self, config_path: str = None):
-        """初始化"""
+        """
+        初始化发布器
+        
+        Args:
+            config_path: 配置文件路径，默认使用 config/wechat.yaml
+        """
         if config_path is None:
             config_path = Path(__file__).parent.parent / 'config' / 'wechat.yaml'
         
         with open(config_path, 'r', encoding='utf-8') as f:
             self.config = yaml.safe_load(f)
         
-        self.app_id = self.config['wechat']['app_id']
-        self.app_secret = self.config['wechat']['app_secret']
-        self.api_base = self.config['wechat']['api_base_url']
-        self.token_cache_file = self.config['wechat']['token']['cache_file']
+        wechat_config = self.config.get('wechat', {})
+        self.api_base = wechat_config.get('api_base_url', 'https://api.weixin.qq.com')
+        self.app_id = wechat_config.get('app_id', '')
+        self.app_secret = wechat_config.get('app_secret', '')
         
-        self.access_token = None
-        self.token_expires_at = None
+        # Token缓存
+        self._token_cache = None
+        self._token_expires = None
     
     def get_access_token(self) -> str:
         """
-        获取 Access Token（带缓存）
-        """
-        # 检查缓存
-        if self._load_token_from_cache():
-            return self.access_token
+        获取Access Token（带缓存）
         
-        # 请求新的 token
+        Returns:
+            access_token
+        """
+        # 检查缓存是否有效
+        if self._token_cache and self._token_expires and datetime.now() < self._token_expires:
+            return self._token_cache
+        
+        # 获取新Token
         url = f"{self.api_base}/cgi-bin/token"
         params = {
             "grant_type": "client_credential",
@@ -49,123 +58,21 @@ class WeChatPublisher:
             "secret": self.app_secret
         }
         
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=30)
         result = response.json()
         
         if 'access_token' in result:
-            self.access_token = result['access_token']
-            expires_in = result.get('expires_in', 7200)
-            self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
-            
-            # 保存到缓存
-            self._save_token_to_cache()
-            
-            print(f"✅ Access Token 获取成功，有效期至: {self.token_expires_at}")
-            return self.access_token
+            self._token_cache = result['access_token']
+            # 提前5分钟过期
+            expires_in = result.get('expires_in', 7200) - 300
+            self._token_expires = datetime.now() + timedelta(seconds=expires_in)
+            return self._token_cache
         else:
-            error_msg = f"获取 Access Token 失败: {result}"
-            print(f"❌ {error_msg}")
-            raise Exception(error_msg)
-    
-    def _load_token_from_cache(self) -> bool:
-        """从缓存加载 token"""
-        if not os.path.exists(self.token_cache_file):
-            return False
-        
-        try:
-            with open(self.token_cache_file, 'r') as f:
-                cache = json.load(f)
-            
-            expires_at = datetime.fromisoformat(cache['expires_at'])
-            refresh_before = self.config['wechat']['token']['refresh_before']
-            
-            # 检查是否即将过期（提前刷新）
-            if datetime.now() < expires_at - timedelta(seconds=refresh_before):
-                self.access_token = cache['access_token']
-                self.token_expires_at = expires_at
-                print(f"✅ 使用缓存的 Access Token，有效期至: {self.token_expires_at}")
-                return True
-        except Exception as e:
-            print(f"⚠️ 缓存加载失败: {e}")
-        
-        return False
-    
-    def _save_token_to_cache(self):
-        """保存 token 到缓存"""
-        cache = {
-            'access_token': self.access_token,
-            'expires_at': self.token_expires_at.isoformat()
-        }
-        with open(self.token_cache_file, 'w') as f:
-            json.dump(cache, f)
-    
-    def upload_image(self, image_path: str) -> str:
-        """
-        上传图片到微信素材库
-        
-        Args:
-            image_path: 图片本地路径
-            
-        Returns:
-            图片在微信服务器的 URL
-        """
-        token = self.get_access_token()
-        url = f"{self.api_base}/cgi-bin/material/add_material"
-        params = {
-            "access_token": token,
-            "type": "image"
-        }
-        
-        with open(image_path, 'rb') as f:
-            files = {'media': f}
-            response = requests.post(url, params=params, files=files)
-        
-        result = response.json()
-        
-        if 'url' in result:
-            print(f"✅ 图片上传成功: {result['url']}")
-            return result['url']
-        else:
-            error_msg = f"图片上传失败: {result}"
-            print(f"❌ {error_msg}")
-            raise Exception(error_msg)
-    
-    def upload_news(self, articles: List[Dict]) -> str:
-        """
-        上传图文素材
-        
-        Args:
-            articles: 图文列表，每个元素包含:
-                - title: 标题
-                - author: 作者
-                - digest: 摘要
-                - content: 正文HTML
-                - content_source_url: 原文链接
-                - thumb_media_id: 封面图media_id
-                
-        Returns:
-            media_id
-        """
-        token = self.get_access_token()
-        url = f"{self.api_base}/cgi-bin/material/add_news"
-        params = {"access_token": token}
-        
-        data = {"articles": articles}
-        
-        response = requests.post(url, params=params, json=data)
-        result = response.json()
-        
-        if 'media_id' in result:
-            print(f"✅ 图文素材上传成功: {result['media_id']}")
-            return result['media_id']
-        else:
-            error_msg = f"图文素材上传失败: {result}"
-            print(f"❌ {error_msg}")
-            raise Exception(error_msg)
+            raise Exception(f"获取Access Token失败: {result}")
     
     def add_draft(self, articles: List[Dict]) -> str:
         """
-        添加草稿（订阅号专用，直接添加文章内容）
+        添加草稿（订阅号专用）
         
         Args:
             articles: 图文列表
@@ -179,15 +86,17 @@ class WeChatPublisher:
         
         data = {"articles": articles}
         
-        response = requests.post(url, params=params, json=data)
+        # 手动编码 JSON，确保中文正确传输
+        headers = {'Content-Type': 'application/json; charset=utf-8'}
+        json_data = json.dumps(data, ensure_ascii=False).encode('utf-8')
+        response = requests.post(url, params=params, data=json_data, headers=headers)
         result = response.json()
         
         if 'media_id' in result:
-            print(f"✅ 草稿添加成功，media_id: {result['media_id']}")
             return result['media_id']
         else:
             error_msg = f"添加草稿失败: {result}"
-            print(f"❌ {error_msg}")
+            print(error_msg)
             raise Exception(error_msg)
     
     def publish_article(self, title: str, content_html: str, 
@@ -206,32 +115,47 @@ class WeChatPublisher:
         Returns:
             发布结果
         """
-        print(f"\n📝 开始发布文章: {title}")
+        print(f"\n开始发布文章: {title}")
+        
+        # 截断标题（微信订阅号限制12字符）
+        if len(title) > 12:
+            title = title[:10] + ".."
+            print(f"标题过长，已截断为: {title}")
         
         # 使用默认配置
         defaults = self.config['publish']['defaults']
         author = author or defaults['author']
         
-        # 如果没有摘要，自动生成（取前100字符）
+        # 截断作者（微信限制8字符）
+        if len(author) > 8:
+            author = author[:8]
+            print(f"作者名称过长，已截断为: {author}")
+        
+        # 如果没有摘要，自动生成（微信限制很严格）
         if not digest:
-            # 简单提取文本（去除HTML标签）
             import re
-            text = re.sub('<[^<]+?>', '', content_html)
-            digest = text[:100] + "..." if len(text) > 100 else text
+            # 先移除 style 标签及其内容
+            text = re.sub(r'<style[^>]*>.*?</style>', '', content_html, flags=re.DOTALL | re.IGNORECASE)
+            # 移除其他HTML标签
+            text = re.sub(r'<[^>]+>', '', text)
+            # 移除多余空白
+            text = re.sub(r'\s+', ' ', text).strip()
+            # 极短摘要：取前20字符
+            digest = text[:20] + "..." if len(text) > 20 else text
         
         # 上传封面图（可选）
         thumb_media_id = ""
         if thumb_image_path and os.path.exists(thumb_image_path):
-            print(f"📷 上传封面图: {thumb_image_path}")
+            print(f"上传封面图: {thumb_image_path}")
             thumb_media_id = self._upload_permanent_image(thumb_image_path)
         else:
             # 使用默认封面图
             default_cover = Path(__file__).parent.parent / 'default_cover.jpg'
             if default_cover.exists():
-                print(f"📷 使用默认封面图")
+                print(f"使用默认封面图")
                 thumb_media_id = self._upload_permanent_image(str(default_cover))
             else:
-                print(f"⚠️ 未提供封面图，将创建无封面草稿（可在草稿箱中补充）")
+                print(f"未提供封面图，将创建无封面草稿")
         
         # 构建图文素材
         article = {
@@ -239,7 +163,7 @@ class WeChatPublisher:
             "author": author,
             "digest": digest,
             "content": content_html,
-            "content_source_url": "",  # 原文链接，可选
+            "content_source_url": "",
             "need_open_comment": defaults['need_open_comment'],
             "only_fans_can_comment": defaults['only_fans_can_comment']
         }
@@ -248,8 +172,13 @@ class WeChatPublisher:
         if thumb_media_id:
             article["thumb_media_id"] = thumb_media_id
         
-        # 订阅号直接添加到草稿箱（不支持永久素材接口）
-        print("📋 添加到草稿箱...")
+        # 订阅号直接添加到草稿箱
+        print("添加到草稿箱...")
+        print(f"   标题: '{title}' (长度: {len(title)})")
+        print(f"   作者: '{author}' (长度: {len(author)})")
+        print(f"   摘要: '{digest[:20]}...' (长度: {len(digest)})")
+        print(f"   内容长度: {len(content_html)} 字符")
+        
         draft_id = self.add_draft([article])
         
         result = {
@@ -263,7 +192,7 @@ class WeChatPublisher:
             }
         }
         
-        print(f"✅ 发布成功！")
+        print(f"发布成功！")
         print(f"   - Draft Media ID: {draft_id}")
         
         return result
@@ -295,13 +224,7 @@ class WeChatPublisher:
     
     def convert_docx_to_html(self, docx_path: str) -> str:
         """
-        将 Word 文档转换为 HTML
-        
-        Args:
-            docx_path: Word 文档路径
-            
-        Returns:
-            HTML 内容
+        将 Word 文档转换为 HTML - 自然语言版
         """
         from docx import Document
         
@@ -310,56 +233,65 @@ class WeChatPublisher:
         html_parts = []
         style_config = self.config['content']['style']
         
-        # 添加样式
-        html_parts.append(f"""
-        <style>
-            body {{
-                font-family: {style_config['font_family']};
-                font-size: {style_config['font_size']};
-                line-height: {style_config['line_height']};
-                color: #333;
-            }}
-            p {{
-                margin: {style_config['paragraph_margin']} 0;
-            }}
-            h1 {{
-                font-size: {style_config['heading']['h1']['font_size']};
-                color: {style_config['heading']['h1']['color']};
-                margin: {style_config['heading']['h1']['margin']};
-            }}
-            h2 {{
-                font-size: {style_config['heading']['h2']['font_size']};
-                color: {style_config['heading']['h2']['color']};
-                margin: {style_config['heading']['h2']['margin']};
-            }}
-            h3 {{
-                font-size: {style_config['heading']['h3']['font_size']};
-                color: {style_config['heading']['h3']['color']};
-                margin: {style_config['heading']['h3']['margin']};
-            }}
-            pre {{
-                background: {style_config['code_block']['background']};
-                border: {style_config['code_block']['border']};
-                padding: {style_config['code_block']['padding']};
-                border-radius: {style_config['code_block']['border_radius']};
-                overflow-x: auto;
-            }}
-        </style>
-        """)
+        # 微信支持的样式（内联）
+        body_style = f"font-family: {style_config['font_family']}; font-size: {style_config['font_size']}; line-height: {style_config['line_height']}; color: #333;"
+        p_style = f"margin: 1em 0; font-size: {style_config['font_size']}; line-height: 1.8; text-align: justify;"
+        h1_style = f"font-size: 22px; color: #1a1a1a; margin: 1.5em 0 0.8em; font-weight: bold;"
+        h2_style = f"font-size: 18px; color: #2c3e50; margin: 1.2em 0 0.6em; font-weight: bold;"
         
-        # 转换段落
+        # 图片占位样式
+        img_placeholder_style = "margin: 15px 0; padding: 30px 20px; background: #f8f9fa; border: 1px dashed #ccc; border-radius: 4px; text-align: center; color: #999; font-size: 14px;"
+        
+        # 开始 body
+        html_parts.append(f'<section style="{body_style}">')
+        
         for para in doc.paragraphs:
             text = para.text.strip()
             if not text:
                 continue
             
-            # 根据样式判断标题级别
             style_name = para.style.name if para.style else None
-            if style_name and style_name.startswith('Heading'):
-                level = style_name[-1]
-                html_parts.append(f"<h{level}>{text}</h{level}>")
+            
+            # 一级标题（文章主标题）
+            if style_name and style_name.startswith('Title'):
+                html_parts.append(f'<h1 style="{h1_style} text-align: center;">{text}</h1>')
+            
+            # 二级标题（章节标题）
+            elif style_name and style_name.startswith('Heading 1'):
+                html_parts.append(f'<h2 style="{h1_style}">{text}</h2>')
+            
+            # 三级标题（小节标题）
+            elif style_name and style_name.startswith('Heading 2'):
+                html_parts.append(f'<h3 style="{h2_style}">{text}</h3>')
+            
+            # 图片占位符 [配图：描述]
+            elif text.startswith('[配图：') and text.endswith(']'):
+                description = text[4:-1]  # 提取描述
+                html_parts.append(f'<div style="{img_placeholder_style}">{description}</div>')
+            
+            # 分隔线
+            elif text.startswith('_' * 10) or text.startswith('—' * 5):
+                html_parts.append('<hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;"/>')
+            
+            # 元信息（居中、灰色）
+            elif ' | ' in text and ('技术架构' in text or any(c.isdigit() for c in text)):
+                html_parts.append(f'<p style="{p_style} text-align: center; color: #999; font-size: 13px;">{text}</p>')
+            
+            # 钩子（蓝色、居中）
+            elif text.startswith(('最近', '在架构', '去年', '如果你')) and len(text) < 100:
+                html_parts.append(f'<p style="{p_style} text-align: center; color: #1890ff; font-size: 15px;">{text}</p>')
+            
+            # 普通段落
             else:
-                html_parts.append(f"<p>{text}</p>")
+                # 检查是否包含需要强调的内容
+                if any(keyword in text for keyword in ['第一', '第二', '第三', '第四', '第五', '总结', '建议']):
+                    # 开头加粗
+                    html_parts.append(f'<p style="{p_style}"><strong>{text[:4]}</strong>{text[4:]}</p>')
+                else:
+                    html_parts.append(f'<p style="{p_style}">{text}</p>')
+        
+        # 结束 body
+        html_parts.append('</section>')
         
         return '\n'.join(html_parts)
 
@@ -378,7 +310,7 @@ def main():
     publisher = WeChatPublisher()
     
     # 转换 Word 为 HTML
-    print(f"📄 转换 Word 文档: {docx_path}")
+    print(f"转换 Word 文档: {docx_path}")
     html_content = publisher.convert_docx_to_html(docx_path)
     
     # 发布到草稿箱

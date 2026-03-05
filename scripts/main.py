@@ -36,15 +36,27 @@ def main():
         
         # 确定文章主题
         if args.get('mode') == 'auto':
-            # 自动搜索热点
-            logger.info("开始自动搜索热点...")
+            # 自动搜索热点 - 使用爆款选题引擎
+            logger.info("启动爆款选题引擎...")
             searcher = HotSearcher(config)
-            hot_topics = searcher.search(args.get('domain', '技术架构'))
-            topic = hot_topics[0] if hot_topics else '技术架构最新趋势'
-            logger.info(f"自动选择热点: {topic}")
+            
+            # 获取高潜力选题
+            viral_topic = searcher.get_viral_topic(args.get('domain', '技术架构'))
+            
+            # 分析选题潜力
+            potential = searcher.analyze_topic_potential(viral_topic)
+            logger.info(f"🎯 爆款选题: {potential['topic']}")
+            logger.info(f"📊 爆款潜力: {potential['potential_score']}/100")
+            logger.info(f"🏷️ 推荐标签: {', '.join(potential['recommended_tags'])}")
+            logger.info(f"👥 目标读者: {', '.join(potential['target_audience'])}")
+            
+            topic = potential['topic']
+            search_results = searcher.search(topic, limit=5)
         else:
             topic = args.get('topic', '技术架构')
             logger.info(f"使用指定主题: {topic}")
+            searcher = HotSearcher(config)
+            search_results = searcher.search(topic, limit=5)
         
         # 确定文章风格
         style = args.get('style', config['generation']['default_style'])
@@ -56,8 +68,7 @@ def main():
         
         # 搜索相关资料
         logger.info("开始搜索相关资料...")
-        searcher = HotSearcher(config)
-        search_results = searcher.search(topic, limit=5)
+        # searcher 已经在上面初始化过了
         logger.info(f"搜索到 {len(search_results)} 条相关资料")
         
         # 生成文章
